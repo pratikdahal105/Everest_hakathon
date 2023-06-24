@@ -85,7 +85,7 @@ def callback():
     app.logger.info(token)
     if token:
         # You might want to adjust this part based on the token structure you receive
-        payload = verify_jwt(token['id_token'])  # I'm assuming you receive an 'id_token'
+        payload = verify_jwt(token['sub'])  # I'm assuming you receive an 'sub'
         if payload is not None:
             print("Token is valid.")
             app.logger.info("Token is valid.")
@@ -121,17 +121,17 @@ def register():
     name = data.get('name')
     email = data.get('email')
     phone = data.get('phone')
-    # password = data.get('password')
-    id_token = session['id_token']
+    password = data.get('password')
+    sub = session['sub']
 
     # Perform validation on the input data
-    if not name or not email or not phone or not id_token:
+    if not name or not email or not phone or not sub:
         # return jsonify({'error': 'Incomplete user data'})
         return response('Incomplete user data', mimetype='text/plain', status=406)
 
     mutation = '''
-        mutation($name: String!, $email: String!, $id_token: String!, $phone: String!) {
-        registerUser(name: $name, email: $email, id_token: $id_token, phone: $phone) {
+        mutation($name: String!, $email: String!, $sub: String!, $phone: String!, $password: String!) {
+        registerUser(name: $name, email: $email, sub: $sub, phone: $phone, password, $password) {
             message
         }
         }
@@ -140,7 +140,8 @@ def register():
         'name': name,
         'email': email,
         'phone': phone,
-        'id_token': id_token,
+        'password': password
+        'sub': sub,
     }
     result = schema.execute(mutation, variable_values=variables)
 
@@ -152,7 +153,7 @@ def register():
 @app.route("/deposit", methods = ['POST'])
 def deposit():
     data = request.get_json()
-    id_token = session['id_token']
+    sub = session['sub']
     deposit = data.get('deposit')
     valid_till = data.get('valid_till')
     intrest_rate = 3
@@ -163,7 +164,7 @@ def deposit():
         return jsonify({'message': 'Incomplete data', 'status': True}), 406
 
     mutation ='''
-        mutation ($id_token: id_token, $deposit: Float!, $validTill: DateTime!, $intrest_rate: Float!, $timestamp: DataTime!, $status: Boolean!) {
+        mutation ($sub: sub, $deposit: Float!, $validTill: DateTime!, $intrest_rate: Float!, $timestamp: DataTime!, $status: Boolean!) {
             createDeposit(deposit: $deposit, validTill: $validTill, intrest_rate: $intrest_rate, timestamp: $timestamp, status: $status) {
                 deposit
             }
