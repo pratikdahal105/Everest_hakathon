@@ -19,7 +19,7 @@ db.init_app(app)
 # Your Worldcoin app settings
 CLIENT_ID = "app_staging_a23155e3d7ed6e3f075172c93c6f7e4c"
 CLIENT_SECRET = "sk_b901a6800e7160ce480521edccdd9ca755e556abe5a753fc"
-REDIRECT_URI = "http://localhost:5000/auth/callback"
+REDIRECT_URI = "http://localhost:5000/callback"
 BASE_URL = "https://id.worldcoin.org"
 
 @app.before_first_request
@@ -63,7 +63,7 @@ def register():
     name = data.get('name')
     email = data.get('email')
     password = data.get('password')
-    verifivation = 
+    # verifivation = 
 
     # Perform validation on the input data
     if not name or not email or not password:
