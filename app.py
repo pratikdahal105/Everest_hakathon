@@ -58,7 +58,7 @@ def verify_jwt(token):
 def create_tables():
     db.create_all()
 
-@app.route('/', methods = ['GET'])
+@app.route('/woldcoinlogin', methods = ['GET'])
 def hello_world():
     # Redirect user to Worldcoin authentication page
     auth_url = f"{BASE_URL}/authorize?response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}"
