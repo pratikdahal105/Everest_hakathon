@@ -128,7 +128,7 @@ def callback():
         session['access_token'] = tokens['access_token']
         session['credential_type'] = tokens['user_info']['https://id.worldcoin.org/beta']['credential_type']
         if session['credential_type'] == "orb":
-            return redirect("http://localhost:3000/dashboard", code=302)  # Redirect to localhost:3000
+            return redirect("http://localhost:3000/lendBorrowPage", code=302)  # Redirect to localhost:3000
         else:
             return redirect("http://localhost:3000/greydashboard", code=302)
            # return jsonify({'message': 'Not Orb Verified', 'status': False}), 401
