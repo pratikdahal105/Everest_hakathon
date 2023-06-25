@@ -16,7 +16,7 @@ class User(SQLAlchemyObjectType):
         return self.phoneNumber
     
     def resolve_sub(self, info):
-        return self.sub
+        return str(self.sub)
 
 class CreateUser(graphene.Mutation):
     class Arguments:
@@ -47,14 +47,14 @@ class UserLogin(graphene.Mutation):  # new UserLogin mutation
         user = UserModel.query.filter_by(username=username, password=password).first()
         if user is None:
             return UserLogin(success=False, message="No user found with the provided credentials")
-        
+        print (user)
         response = {
             'username': user.username,
             'phoneNumber': user.phoneNumber,
-            'sub': user.sub
+            'sub': str(user.sub)
         }
 
-        return UserLogin(success=True, user=response, message="Login successful")
+        return UserLogin(success=True, user=user, message="Login successful")
 
 class Query(graphene.ObjectType):
     node = graphene.relay.Node.Field()

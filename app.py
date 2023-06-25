@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request, jsonify,session
+from flask import Flask, redirect, request, jsonify,session, render_template
 from flask_cors import CORS
 from flask_graphql import GraphQLView
 from message import Message 
@@ -9,6 +9,7 @@ import json
 import base64
 import uuid
 from jose import jwt
+from models.user import User
 
 app = Flask(__name__)
 app.secret_key =  "Everest"
@@ -68,12 +69,9 @@ def hello_world():
     # Redirect user to Worldcoin authentication page
     auth_url = f"{BASE_URL}/authorize?response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}"
     return redirect(auth_url, code=302)
-
 @app.route("/callback")
 def callback():
-    # Worldcoin redirects user here after authentication
     auth_code = request.args.get("code")
-    # Exchange authorization code for tokens
     token_url = f"{BASE_URL}/token"
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -87,38 +85,89 @@ def callback():
     tokens = response.json()
     session['token'] = tokens
     token = session.get('token')
-    app.logger.info(token)
+
     if token:
-        # You might want to adjust this part based on the token structure you receive
-        payload = verify_jwt(token['access_token'])  # I'm assuming you receive an 'sub'
+        payload = verify_jwt(token['access_token'])
         if payload is not None:
-            print("Token is valid.")
             app.logger.info("Token is valid.")
+            session['sub'] = payload.get('sub')  # Update to use payload['sub'] instead
+            user = User.query.filter_by(sub=session['sub']).first()
+            app.logger.info(user)
+            if user:
+                user.username = payload['username']
+                db.session.commit()
+                app.logger.info("User data updated in the database.")
+            else:
+                app.logger.info("User not found in the database.")
         else:
-            print("Invalid token.")
-    # Now you can use the tokens to call Worldcoin APIs on behalf of the user
-    # For this example, we just display them
-     # Get user information from /userinfo endpoint
-        userinfo_url = "https://id.worldcoin.org/userinfo"
-        userinfo_headers = {
-            "Authorization": f"Bearer {token['access_token']}"
-        }
-        userinfo_response = requests.post(userinfo_url, headers=userinfo_headers)
-        userinfo_data = userinfo_response.json()
-        # Include user information in the tokens dictionary
-        tokens['user_info'] = userinfo_data
-    # return jsonify(tokens['access_token'])
-    if(tokens['access_token']):
-        session['sub'] = tokens['user_info']['sub']
+            app.logger.info("Invalid token.")
+
+    userinfo_url = "https://id.worldcoin.org/userinfo"
+    userinfo_headers = {
+        "Authorization": f"Bearer {token['access_token']}"
+    }
+    userinfo_response = requests.post(userinfo_url, headers=userinfo_headers)
+    userinfo_data = userinfo_response.json()
+    tokens['user_info'] = userinfo_data
+
+    if tokens.get('access_token'):  # Update to use tokens.get('access_token') instead
         session['access_token'] = tokens['access_token']
         session['credential_type'] = tokens['user_info']['https://id.worldcoin.org/beta']['credential_type']
-        if(session['credential_type'] == "orb"):
+        if session['credential_type'] == "orb":
             return jsonify(token), 202
         else:
             return jsonify({'message': 'Not Orb Verified', 'status': False}), 401
     else:
         return jsonify({'message': 'User Logged In!', 'status': False}), 401
+
+@app.route("/view-login", methods=['GET'])
+def view_login():
+    if 'login' in session:
+        login_data = session['login']
+        return render_template('login.html', login_data=login_data)
+    else:
+        return "No user logged in"
     
+@app.route("/login", methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')  # Update to use 'username' instead of 'email'
+    password = data.get('password')
+
+    # Perform validation on the input data
+    if not username or not password:
+        return jsonify({'error': 'Incomplete login data'}), 400
+
+    mutation = '''
+    mutation($username: String!, $password: String!) {
+        loginUser(username: $username, password: $password) {  # Update to use 'username' instead of 'email'
+            user {
+                username
+            }
+            token
+        }
+    }
+    '''
+    variables = {
+        'username': username,
+        'password': password,
+    }
+    result = schema.execute(mutation, variable_values=variables)
+
+    if result.errors:
+        return jsonify({'error': str(result.errors[0])}), 400
+    else:
+        response_data = result.data['userLogin']
+        if response_data.get('user'):
+            session['login'] = response_data['user']
+            return jsonify({'message': 'Login successful', 'status': True}), 200
+        else:
+            return jsonify({'message': 'Invalid username or password', 'status': False}), 401
+
+@app.route("/logout", methods = ['GET'])
+def logout():
+    return jsonify({'data':session['login'], 'status': True}), 200
+
 @app.route("/register", methods=['POST'])
 def register():
     # Extract user data from the request
